@@ -6,20 +6,23 @@ echo "[*] Installing XFCE4, VNC, and noVNC..."
 sudo apt-get update -y
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
     xfce4 xfce4-goodies tightvncserver novnc websockify dbus-x11 \
-    x11-xserver-utils xfce4-terminal firefox
+    x11-xserver-utils xfce4-terminal firefox language-pack-ja language-pack-gnome-ja
+
+# === 日本語ロケール =====================================================
+sudo locale-gen ja_JP.UTF-8
+sudo update-locale LANG=ja_JP.UTF-8 LANGUAGE=ja_JP:ja
+export LANG=ja_JP.UTF-8
 
 # === VNC セットアップ ====================================================
 VNC_DIR="$HOME/.vnc"
 mkdir -p "$VNC_DIR"
 
-# デフォルトVNCパスワード設定（必要なら変更可）
 if [ ! -f "$VNC_DIR/passwd" ]; then
   echo "[*] Setting VNC password..."
   echo "vncpass" | vncpasswd -f > "$VNC_DIR/passwd"
   chmod 600 "$VNC_DIR/passwd"
 fi
 
-# xstartupスクリプト作成
 cat > "$VNC_DIR/xstartup" <<'EOF'
 #!/bin/bash
 xrdb $HOME/.Xresources
