@@ -1,82 +1,81 @@
 #!/usr/bin/env bash
 set -e
 
-# === 画面解像度設定（Chromebook 300e） ================================
-SCREEN_WIDTH=1366
-SCREEN_HEIGHT=768
-DEPTH=24
-VNC_DISPLAY=:1
-XPRA_DISPLAY=:100
-XPRA_PORT=10000
-NOVNC_PORT=6080
-VNC_PASSWORD="vncpass"
-
-# === 環境準備 ============================================================
 echo "[*] Updating system..."
 sudo apt-get update -y
-sudo apt-get upgrade -y
 
-echo "[*] Installing XFCE4, VNC, noVNC, XPRA, and Japanese fonts..."
-sudo apt-get install -y \
-    xfce4 xfce4-goodies tightvncserver novnc websockify dbus-x11 \
-    x11-xserver-utils xfce4-terminal pulseaudio xpra \
-    language-pack-ja language-pack-gnome-ja fonts-ipafont fonts-ipafont-gothic fonts-ipafont-mincho \
-    wget tar bzip2 xz-utils
+echo "[*] Installing XFCE4, VNC, noVNC, XPRA..."
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+    xfce4 xfce4-goodies tightvncserver novnc websockify \
+    dbus-x11 pulseaudio xpra \
+    x11-xserver-utils xfce4-terminal fonts-ipafont \
+    language-pack-ja language-pack-gnome-ja wget tar
 
-# === 日本語ロケール =====================================================
+# ============================================================
+# Firefox DEB を Mozilla サイトから直接ダウンロード
+# ============================================================
+echo "[*] Installing Firefox (direct DEB download)..."
+TMPDIR=$(mktemp -d)
+cd $TMPDIR
+
+# 最新安定版 Firefox の URL を取得
+FIREFOX_URL=$(curl -s https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=ja)
+
+wget -O firefox.tar.bz2 "$FIREFOX_URL"
+tar xjf firefox.tar.bz2
+sudo mv firefox /opt/firefox
+sudo ln -sf /opt/firefox/firefox /usr/local/bin/firefox
+
+cd -
+rm -rf $TMPDIR
+
+# ============================================================
+# 日本語ロケール
+# ============================================================
+echo "[*] Configuring Japanese locale..."
 sudo locale-gen ja_JP.UTF-8
 sudo update-locale LANG=ja_JP.UTF-8 LANGUAGE=ja_JP:ja
 export LANG=ja_JP.UTF-8
 
-# === VNC セットアップ ====================================================
-VNC_DIR="$HOME/.vnc"
-mkdir -p "$VNC_DIR"
-
-if [ ! -f "$VNC_DIR/passwd" ]; then
-    echo "[*] Setting VNC password..."
-    echo "$VNC_PASSWORD" | vncpasswd -f > "$VNC_DIR/passwd"
-    chmod 600 "$VNC_DIR/passwd"
-fi
-
-cat > "$VNC_DIR/xstartup" <<'EOF'
-#!/bin/bash
-xrdb $HOME/.Xresources
-startxfce4 &
+cat <<EOF > ~/.xsessionrc
+export LANG=ja_JP.UTF-8
+export LANGUAGE=ja_JP:ja
+export LC_ALL=ja_JP.UTF-8
 EOF
-chmod +x "$VNC_DIR/xstartup"
 
-# === 既存VNCセッション停止 ==============================================
-if pgrep Xtightvnc >/dev/null; then
-    echo "[*] Stopping existing VNC session..."
-    vncserver -kill $VNC_DISPLAY || true
-fi
+grep -q "LANG=ja_JP.UTF-8" ~/.bashrc || cat <<EOF >> ~/.bashrc
+export LANG=ja_JP.UTF-8
+export LANGUAGE=ja_JP:ja
+export LC_ALL=ja_JP.UTF-8
+EOF
 
-# === 新しいVNCサーバー起動 ==============================================
-echo "[*] Starting VNC server..."
-vncserver $VNC_DISPLAY -geometry ${SCREEN_WIDTH}x${SCREEN_HEIGHT} -depth $DEPTH
+# ============================================================
+# VNC セットアップ
+# ============================================================
+mkdir -p ~/.vnc
+echo "vncpass" | vncpasswd -f > ~/.vnc/passwd
+chmod 600 ~/.vnc/passwd
 
-# === noVNC 起動 ==========================================================
-echo "[*] Starting noVNC on port $NOVNC_PORT..."
-nohup websockify --web=/usr/share/novnc/ $NOVNC_PORT localhost:5901 > /tmp/novnc.log 2>&1 &
+cat <<EOF > ~/.vnc/xstartup
+#!/bin/bash
+xrdb \$HOME/.Xresources
+dbus-launch startxfce4 &
+EOF
+chmod +x ~/.vnc/xstartup
+vncserver -kill :1 2>/dev/null || true
+vncserver :1 -geometry 1920x1080 -depth 24
+nohup websockify --web=/usr/share/novnc/ 6080 localhost:5901 > /tmp/novnc.log 2>&1 &
 
-# === Firefox インストール（APT 不使用） =================================
-if ! command -v firefox >/dev/null 2>&1; then
-    echo "[*] Installing Firefox (direct download)..."
-    TMPDIR=$(mktemp -d)
-    cd $TMPDIR
-    wget -O firefox.tar.xz "https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=ja"
-    tar -xf firefox.tar.xz
-    sudo mv firefox /opt/firefox
-    sudo ln -sf /opt/firefox/firefox /usr/local/bin/firefox
-    cd -
-    rm -rf $TMPDIR
-fi
+# ============================================================
+# PulseAudio
+# ============================================================
+pulseaudio --kill 2>/dev/null || true
+pulseaudio --start --exit-idle-time=-1
 
-# === XPRA 起動 ==========================================================
-XPRA_LOG="/tmp/xpra.log"
-echo "[*] Starting XPRA server on port $XPRA_PORT..."
-pulseaudio --start || true
-
+# ============================================================
+# XPRA（音声つき）
+# ============================================================
+xpra stop :100 2>/dev/null || true
 nohup xpra start :100 \
     --start-child="dbus-launch xfce4-session" \
     --bind-tcp=0.0.0.0:10000 \
@@ -84,22 +83,16 @@ nohup xpra start :100 \
     --encoding=vp9 \
     --sound=yes \
     --sound-source=pulseaudio \
-    --geometry=1920x1080 \
+    --virtual-resolution=1920x1080 \
     --resize-display=yes \
     --dpi=96 \
     --no-daemon \
     > /tmp/xpra.log 2>&1 &
 
-
-
-# === 完了メッセージ ======================================================
 echo ""
 echo "=============================================================="
-echo "✅ XFCE4 Desktop is running!"
-echo "   • noVNC: http://<chromebook-ip>:$NOVNC_PORT (ブラウザ)"
-echo "   • XPRA: http://<chromebook-ip>:$XPRA_PORT (HTML5 またはネイティブクライアント)"
-echo "   • VNC password: $VNC_PASSWORD"
-echo "   • XPRA log: $XPRA_LOG"
+echo " 🚀 XFCE4 Desktop Ready!"
+echo " • XPRA (Audio Enabled): http://localhost:10000/"
+echo " • noVNC: http://localhost:6080/"
+echo " • VNC password: vncpass"
 echo "=============================================================="
-echo ""
-echo "[*] You can monitor XPRA log using: tail -f $XPRA_LOG"
