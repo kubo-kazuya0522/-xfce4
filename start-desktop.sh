@@ -48,17 +48,14 @@ pulseaudio --kill 2>/dev/null || true
 pulseaudio --start --exit-idle-time=-1
 
 # === Start XPRA ====================================================
-echo "[*] Starting XPRA on port 10000..."
-
+echo "[*] Starting XPRA..."
 nohup xpra start :100 \
     --start-child="dbus-launch xfce4-session" \
     --bind-tcp=0.0.0.0:10000 \
     --html=on \
-    --speaker=on \
-    --microphone=off \
-    --video-encoders=vp8,vp9 \
-    --audio-codec=opus \
-    --pulseaudio=yes \
+    --encoding=vp9 \
+    --sound-source=pulseaudio \
+    --sound=yes \
     --no-daemon \
     > /tmp/xpra.log 2>&1 &
 
