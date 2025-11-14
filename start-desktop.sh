@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
+# === 画面解像度設定（Chromebook 300e） ================================
+SCREEN_WIDTH=1366
+SCREEN_HEIGHT=768
+DEPTH=24
+VNC_DISPLAY=:1
+XPRA_DISPLAY=:100
+XPRA_PORT=10000
+NOVNC_PORT=6080
+
 # === 環境準備 ============================================================
 echo "[*] Updating system..."
 sudo apt-get update -y
@@ -37,16 +46,16 @@ chmod +x "$VNC_DIR/xstartup"
 # === 既存VNCセッション停止 ==============================================
 if pgrep Xtightvnc > /dev/null; then
   echo "[*] Stopping existing VNC session..."
-  vncserver -kill :1 || true
+  vncserver -kill $VNC_DISPLAY || true
 fi
 
 # === 新しいVNCサーバー起動 ==============================================
 echo "[*] Starting VNC server..."
-vncserver :1 -geometry 1920x1080 -depth 24
+vncserver $VNC_DISPLAY -geometry ${SCREEN_WIDTH}x${SCREEN_HEIGHT} -depth $DEPTH
 
 # === noVNC 起動 ==========================================================
-echo "[*] Starting noVNC on port 6080..."
-nohup websockify --web=/usr/share/novnc/ 6080 localhost:5901 > /tmp/novnc.log 2>&1 &
+echo "[*] Starting noVNC on port $NOVNC_PORT..."
+nohup websockify --web=/usr/share/novnc/ $NOVNC_PORT localhost:5901 > /tmp/novnc.log 2>&1 &
 
 # === Firefox インストール（APT 不使用） =================================
 if ! command -v firefox >/dev/null 2>&1; then
@@ -62,22 +71,23 @@ if ! command -v firefox >/dev/null 2>&1; then
 fi
 
 # === XPRA 起動 ==========================================================
-echo "[*] Starting XPRA server on port 10000..."
+echo "[*] Starting XPRA server on port $XPRA_PORT..."
 pulseaudio --start
 
-nohup xpra start :100 \
+nohup xpra start $XPRA_DISPLAY \
     --start-child="xfce4-session" \
-    --bind-tcp=0.0.0.0:10000 \
+    --bind-tcp=0.0.0.0:$XPRA_PORT \
     --html=on \
     --speaker=on \
-    --screen=1920x1080 \
+    --geometry ${SCREEN_WIDTH}x${SCREEN_HEIGHT} \
+    --dpi=96 \
     > /tmp/xpra.log 2>&1 &
 
 echo ""
 echo "=============================================================="
 echo "✅ XFCE4 Desktop is running!"
-echo "   • noVNC: Connect via port 6080 (browser)"
-echo "   • XPRA: Connect via port 10000 (HTML5 or native client)"
+echo "   • noVNC: Connect via port $NOVNC_PORT (browser)"
+echo "   • XPRA: Connect via port $XPRA_PORT (HTML5 or native client)"
 echo "   • VNC password: vncpass"
 echo "=============================================================="
 echo ""
