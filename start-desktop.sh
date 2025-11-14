@@ -82,7 +82,7 @@ nohup xpra start $XPRA_DISPLAY \
     --bind-tcp=0.0.0.0:$XPRA_PORT \
     --html=on \
     --speaker=on \
-    --geometry ${SCREEN_WIDTH}x${SCREEN_HEIGHT} \
+    --size ${SCREEN_WIDTH}x${SCREEN_HEIGHT} \
     --dpi=96 \
     > $XPRA_LOG 2>&1 &
 
