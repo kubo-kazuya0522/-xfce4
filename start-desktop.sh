@@ -1,68 +1,92 @@
 #!/usr/bin/env bash
 set -e
 
-echo "[*] Installing XFCE4, VNC, noVNC, XPRA..."
+echo "[*] Updating system..."
 sudo apt-get update -y
+
+echo "[*] Installing desktop packages..."
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
     xfce4 xfce4-goodies tightvncserver novnc websockify \
     dbus-x11 pulseaudio xpra \
-    x11-xserver-utils xfce4-terminal firefox \
-    language-pack-ja language-pack-gnome-ja
+    x11-xserver-utils xfce4-terminal firefox-esr \
+    language-pack-ja language-pack-gnome-ja fonts-ipafont
 
-# === Locale =========================================================
+# ============================================================
+# 日本語ロケール設定
+# ============================================================
+echo "[*] Configuring Japanese locale..."
 sudo locale-gen ja_JP.UTF-8
 sudo update-locale LANG=ja_JP.UTF-8 LANGUAGE=ja_JP:ja
 export LANG=ja_JP.UTF-8
 
-# === VNC Setup ======================================================
-VNC_DIR="$HOME/.vnc"
-mkdir -p "$VNC_DIR"
+# ~/.xsessionrc（XFCE 用）
+cat <<EOF > ~/.xsessionrc
+export LANG=ja_JP.UTF-8
+export LANGUAGE=ja_JP:ja
+export LC_ALL=ja_JP.UTF-8
+EOF
 
-if [ ! -f "$VNC_DIR/passwd" ]; then
-  echo "vncpass" | vncpasswd -f > "$VNC_DIR/passwd"
-  chmod 600 "$VNC_DIR/passwd"
-fi
+# ~/.bashrc（ターミナル用）
+grep -q "LANG=ja_JP.UTF-8" ~/.bashrc || cat <<EOF >> ~/.bashrc
+export LANG=ja_JP.UTF-8
+export LANGUAGE=ja_JP:ja
+export LC_ALL=ja_JP.UTF-8
+EOF
 
-cat > "$VNC_DIR/xstartup" <<'EOF'
+# ============================================================
+# VNC セットアップ
+# ============================================================
+echo "[*] Setting up VNC..."
+mkdir -p ~/.vnc
+
+echo "vncpass" | vncpasswd -f > ~/.vnc/passwd
+chmod 600 ~/.vnc/passwd
+
+cat <<EOF > ~/.vnc/xstartup
 #!/bin/bash
-xrdb $HOME/.Xresources
+xrdb \$HOME/.Xresources
 dbus-launch startxfce4 &
 EOF
-chmod +x "$VNC_DIR/xstartup"
+chmod +x ~/.vnc/xstartup
 
-# === Stop previous sessions ========================================
 vncserver -kill :1 2>/dev/null || true
-xpra stop :100 2>/dev/null || true
 
-# === Start VNC ======================================================
-echo "[*] Starting VNC..."
+echo "[*] Starting VNC server..."
 vncserver :1 -geometry 1920x1080 -depth 24
 
 echo "[*] Starting noVNC on port 6080..."
-nohup websockify --web=/usr/share/novnc/ 6080 localhost:5901 \
-  > /tmp/novnc.log 2>&1 &
+nohup websockify --web=/usr/share/novnc/ 6080 localhost:5901 > /tmp/novnc.log 2>&1 &
 
-# === Start PulseAudio ==============================================
+# ============================================================
+# PulseAudio
+# ============================================================
 echo "[*] Starting PulseAudio..."
 pulseaudio --kill 2>/dev/null || true
 pulseaudio --start --exit-idle-time=-1
 
-# === Start XPRA ====================================================
-echo "[*] Starting XPRA..."
+# ============================================================
+# XPRA（HTML5 + 音声 + フルHD）
+# ============================================================
+echo "[*] Starting XPRA... (port 10000)"
+xpra stop :100 2>/dev/null || true
+
 nohup xpra start :100 \
     --start-child="dbus-launch xfce4-session" \
     --bind-tcp=0.0.0.0:10000 \
     --html=on \
     --encoding=vp9 \
-    --sound-source=pulseaudio \
     --sound=yes \
+    --sound-source=pulseaudio \
+    --virtual-resolution=1920x1080 \
+    --resize-display=yes \
+    --dpi=96 \
     --no-daemon \
     > /tmp/xpra.log 2>&1 &
 
+echo ""
 echo "=============================================================="
-echo " XFCE Desktop Ready!"
-echo " • noVNC: port 6080 → public"
-echo " • XPRA HTML5 client: port 10000 → public"
-echo "   (Audio OK through XPRA)"
-echo "   (VNC/noVNC は音声非対応)"
+echo " 🚀 XFCE4 Desktop Ready!"
+echo " • XPRA (with audio): http://localhost:10000/"
+echo " • noVNC (VNC): http://localhost:6080/"
+echo " • VNC password: vncpass"
 echo "=============================================================="
