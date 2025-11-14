@@ -77,14 +77,18 @@ XPRA_LOG="/tmp/xpra.log"
 echo "[*] Starting XPRA server on port $XPRA_PORT..."
 pulseaudio --start || true
 
-nohup xpra start $XPRA_DISPLAY \
-    --start-child="xfce4-session" \
-    --bind-tcp=0.0.0.0:$XPRA_PORT \
+xpra start :100 \
+    --start-child="dbus-launch xfce4-session" \
+    --bind-tcp=0.0.0.0:10000 \
     --html=on \
-    --speaker=on \
-    --size ${SCREEN_WIDTH}x${SCREEN_HEIGHT} \
+    --encoding=vp9 \
+    --sound=yes \
+    --sound-source=pulseaudio \
+    --virtual-resolution=1920x1080 \
+    --resize-display=yes \
     --dpi=96 \
-    > $XPRA_LOG 2>&1 &
+    --no-daemon
+
 
 # === 完了メッセージ ======================================================
 echo ""
