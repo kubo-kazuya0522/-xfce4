@@ -4,6 +4,9 @@ set -e
 echo "[*] Updating system..."
 sudo apt-get update -y
 
+# ============================================================
+# XFCE4 / VNC / noVNC / XPRA / 日本語
+# ============================================================
 echo "[*] Installing XFCE4, VNC, noVNC, XPRA..."
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
     xfce4 xfce4-goodies tightvncserver novnc websockify \
@@ -12,21 +15,27 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
     language-pack-ja language-pack-gnome-ja
 
 # ============================================================
-# Firefox（Snapではなく DEB 版）
+# Firefox（Snap ではなく Mozilla 公式 DEB）
 # ============================================================
 echo "[*] Installing real DEB Firefox (not Snap)..."
-sudo install -d -m 0755 /etc/apt/keyrings
 
-sudo wget -O /etc/apt/keyrings/mozilla.gpg \
-  https://packages.mozilla.org/apt/repo-signing-key.gpg
+# 古いキーやファイルを削除（エラー回避）
+sudo rm -f /etc/apt/keyrings/mozilla.gpg
+sudo rm -f /etc/apt/sources.list.d/mozilla.list
 
-echo \
-"deb [signed-by=/etc/apt/keyrings/mozilla.gpg] \
+sudo mkdir -p /etc/apt/keyrings
+
+# 正しい方法（ASCII → dearmor → keyrings）
+curl -fsSL https://packages.mozilla.org/apt/repo-signing-key.gpg \
+    | gpg --dearmor \
+    | sudo tee /etc/apt/keyrings/packages.mozilla.org.gpg >/dev/null
+
+echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.gpg] \
 https://packages.mozilla.org/apt mozilla main" \
 | sudo tee /etc/apt/sources.list.d/mozilla.list
 
-sudo apt-get update -y
-sudo apt-get install -y firefox
+sudo apt update -y
+sudo apt install -y firefox
 
 # ============================================================
 # 日本語ロケール
@@ -36,14 +45,14 @@ sudo locale-gen ja_JP.UTF-8
 sudo update-locale LANG=ja_JP.UTF-8 LANGUAGE=ja_JP:ja
 export LANG=ja_JP.UTF-8
 
-# ~/.xsessionrc（XFCE ロケール反映）
+# XFCE に locale を強制適用
 cat <<EOF > ~/.xsessionrc
 export LANG=ja_JP.UTF-8
 export LANGUAGE=ja_JP:ja
 export LC_ALL=ja_JP.UTF-8
 EOF
 
-# ~/.bashrc（ターミナル用）
+# bash でも日本語にする
 grep -q "LANG=ja_JP.UTF-8" ~/.bashrc || cat <<EOF >> ~/.bashrc
 export LANG=ja_JP.UTF-8
 export LANGUAGE=ja_JP:ja
@@ -51,7 +60,7 @@ export LC_ALL=ja_JP.UTF-8
 EOF
 
 # ============================================================
-# VNC 設定
+# VNC セットアップ
 # ============================================================
 echo "[*] Configuring VNC..."
 mkdir -p ~/.vnc
@@ -82,7 +91,7 @@ pulseaudio --kill 2>/dev/null || true
 pulseaudio --start --exit-idle-time=-1
 
 # ============================================================
-# XPRA（音声つき / フルHD）
+# XPRA（音声つき）
 # ============================================================
 echo "[*] Starting XPRA on port 10000..."
 xpra stop :100 2>/dev/null || true
@@ -103,7 +112,7 @@ nohup xpra start :100 \
 echo ""
 echo "=============================================================="
 echo " 🚀 XFCE4 Desktop Ready!"
-echo " • XPRA (with Audio): http://localhost:10000/"
+echo " • XPRA (Audio Enabled): http://localhost:10000/"
 echo " • noVNC: http://localhost:6080/"
 echo " • VNC password: vncpass"
 echo "=============================================================="
