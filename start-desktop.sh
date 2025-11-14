@@ -52,3 +52,16 @@ echo "   • Then open it in browser."
 echo "   • VNC password: vncpass"
 echo "=============================================================="
 echo ""
+
+# === XPRA 起動 ==========================================================
+echo "[*] Starting XPRA server on port 10000..."
+pulseaudio --start
+
+nohup xpra start :100 \
+    --start-child=xfce4-session \
+    --bind-tcp=0.0.0.0:10000 \
+    --html=on \
+    --speaker=on \
+    --video-encoders="vp8,vp9" \
+    --audio-codec=opus \
+    > /tmp/xpra.log 2>&1 &
