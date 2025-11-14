@@ -4,38 +4,30 @@ set -e
 echo "[*] Updating system..."
 sudo apt-get update -y
 
-# ============================================================
-# XFCE4 / VNC / noVNC / XPRA / 日本語
-# ============================================================
 echo "[*] Installing XFCE4, VNC, noVNC, XPRA..."
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
     xfce4 xfce4-goodies tightvncserver novnc websockify \
     dbus-x11 pulseaudio xpra \
     x11-xserver-utils xfce4-terminal fonts-ipafont \
-    language-pack-ja language-pack-gnome-ja
+    language-pack-ja language-pack-gnome-ja wget tar
 
 # ============================================================
-# Firefox（Snap ではなく Mozilla 公式 DEB）
+# Firefox DEB を Mozilla サイトから直接ダウンロード
 # ============================================================
-echo "[*] Installing real DEB Firefox (not Snap)..."
+echo "[*] Installing Firefox (direct DEB download)..."
+TMPDIR=$(mktemp -d)
+cd $TMPDIR
 
-# 古いキーやファイルを削除（エラー回避）
-sudo rm -f /etc/apt/keyrings/mozilla.gpg
-sudo rm -f /etc/apt/sources.list.d/mozilla.list
+# 最新安定版 Firefox の URL を取得
+FIREFOX_URL=$(curl -s https://download.mozilla.org/?product=firefox-latest-ssl&os=linux64&lang=ja)
 
-sudo mkdir -p /etc/apt/keyrings
+wget -O firefox.tar.bz2 "$FIREFOX_URL"
+tar xjf firefox.tar.bz2
+sudo mv firefox /opt/firefox
+sudo ln -sf /opt/firefox/firefox /usr/local/bin/firefox
 
-# 正しい方法（ASCII → dearmor → keyrings）
-curl -fsSL https://packages.mozilla.org/apt/repo-signing-key.gpg \
-    | gpg --dearmor \
-    | sudo tee /etc/apt/keyrings/packages.mozilla.org.gpg >/dev/null
-
-echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.gpg] \
-https://packages.mozilla.org/apt mozilla main" \
-| sudo tee /etc/apt/sources.list.d/mozilla.list
-
-sudo apt update -y
-sudo apt install -y firefox
+cd -
+rm -rf $TMPDIR
 
 # ============================================================
 # 日本語ロケール
@@ -45,14 +37,12 @@ sudo locale-gen ja_JP.UTF-8
 sudo update-locale LANG=ja_JP.UTF-8 LANGUAGE=ja_JP:ja
 export LANG=ja_JP.UTF-8
 
-# XFCE に locale を強制適用
 cat <<EOF > ~/.xsessionrc
 export LANG=ja_JP.UTF-8
 export LANGUAGE=ja_JP:ja
 export LC_ALL=ja_JP.UTF-8
 EOF
 
-# bash でも日本語にする
 grep -q "LANG=ja_JP.UTF-8" ~/.bashrc || cat <<EOF >> ~/.bashrc
 export LANG=ja_JP.UTF-8
 export LANGUAGE=ja_JP:ja
@@ -62,9 +52,7 @@ EOF
 # ============================================================
 # VNC セットアップ
 # ============================================================
-echo "[*] Configuring VNC..."
 mkdir -p ~/.vnc
-
 echo "vncpass" | vncpasswd -f > ~/.vnc/passwd
 chmod 600 ~/.vnc/passwd
 
@@ -74,28 +62,20 @@ xrdb \$HOME/.Xresources
 dbus-launch startxfce4 &
 EOF
 chmod +x ~/.vnc/xstartup
-
 vncserver -kill :1 2>/dev/null || true
-
-echo "[*] Starting VNC server :1 (1920x1080)..."
 vncserver :1 -geometry 1920x1080 -depth 24
-
-echo "[*] Starting noVNC on port 6080..."
 nohup websockify --web=/usr/share/novnc/ 6080 localhost:5901 > /tmp/novnc.log 2>&1 &
 
 # ============================================================
 # PulseAudio
 # ============================================================
-echo "[*] Starting PulseAudio..."
 pulseaudio --kill 2>/dev/null || true
 pulseaudio --start --exit-idle-time=-1
 
 # ============================================================
 # XPRA（音声つき）
 # ============================================================
-echo "[*] Starting XPRA on port 10000..."
 xpra stop :100 2>/dev/null || true
-
 nohup xpra start :100 \
     --start-child="dbus-launch xfce4-session" \
     --bind-tcp=0.0.0.0:10000 \
