@@ -3,3 +3,5 @@ Warning: the 'start-child' option is used,
  use 'start' instead
 Entering daemon mode; any further errors will be reported to:
   /run/user/1000/xpra/:100.log
+xpra initialization error:
+ too many extra arguments (2): only expected a display number
