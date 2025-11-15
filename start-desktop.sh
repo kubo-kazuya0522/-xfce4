@@ -36,15 +36,16 @@ echo "[*] Starting PulseAudio..."
 pulseaudio --kill 2>/dev/null || true
 pulseaudio --start --exit-idle-time=-1
 
-echo "[*] Starting XPRA..."
 nohup xpra start :100 \
     --start-child="dbus-launch xfce4-session" \
     --bind-tcp=0.0.0.0:10000 \
     --html=on \
-    --speaker=on \
-    --audio-codec=opus \
-    --pulseaudio=yes \
-    --video-encoders=vp8,vp9 \
+    --encoding=vp9 \
+    --sound-source=pulseaudio \
+    --sound=yes \
+    --virtual-resolution=1920x1080 \
+    --resize-display=yes \
+    --dpi=96 \
     --no-daemon \
     > /tmp/xpra.log 2>&1 &
 
