@@ -76,13 +76,13 @@ XPRA_OPTS="
   --dbus-proxy=no \
   --client-resolution-request=no \
   --remote-clipboard=no \
-  --ws-init-timeout=20000 \
+  --ws-init-timeout=20000 "
   
 
 nohup xpra start :100 \
   --bind-tcp=0.0.0.0:10000 \
   --html=on \
-  --start-child="startxfce4" \
+  --start="startxfce4" \
   --xvfb="/usr/bin/Xvfb +extension RANDR +extension RENDER +extension GLX -screen 0 1366x768x24" \
   --resize-display=no \
   --client-resolution-request=no \
