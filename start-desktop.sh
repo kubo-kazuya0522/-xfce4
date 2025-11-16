@@ -63,7 +63,7 @@ export XDG_RUNTIME_DIR="/run/user/1000"
 sudo mkdir -p /run/user/1000
 sudo chown "$USER":"$USER" /run/user/1000
 
-XPRA_OPTS="--no-daemon \
+XPRA_OPTS="
   --bind-tcp=0.0.0.0:10000 \
   --html=on \
   --encoding=vp9 \
@@ -77,15 +77,15 @@ XPRA_OPTS="--no-daemon \
   --client-resolution-request=no \
   --remote-clipboard=no \
   --ws-init-timeout=20000 \
-  --client-resolution-request=yes \
-  --resize-display=yes \
-  --dpi=96"
+  
 
 nohup xpra start :100 \
   --bind-tcp=0.0.0.0:10000 \
   --html=on \
   --start-child="startxfce4" \
   --xvfb="/usr/bin/Xvfb +extension RANDR +extension RENDER +extension GLX -screen 0 1366x768x24" \
+  --resize-display=no \
+  --client-resolution-request=no \
   --dpi=96 \
   --no-daemon \
   > /tmp/xpra.log 2>&1 &
