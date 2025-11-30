@@ -13,3 +13,16 @@ Quick test steps:
 3. Connect via XPRA and interact (click around). The panel should remain visible. If not, check `/tmp/keep-panel-above.log` and `/tmp/xpra.log` for hints.
 
 If issues remain, you can tweak the helper or XFCE settings (panel properties) inside the session.
+
+## 文字化け (XPRA メニューのアプリ名が化ける場合)
+
+XPRA セッションのメニューでアプリ名が文字化けする（日本語が "ã¯..." のように表示される）場合は、\n
+ロケールや文字エンコーディングが正しく渡されていないことが原因です。
+
+対処法:
+
+- `start-desktop.sh` は ja_JP.UTF-8 ロケールを生成し、XPRA の起動時に必要な環境変数 (LANG, LC_ALL, LC_CTYPE, LANGUAGE, PYTHONIOENCODING) を明示的に渡すようにしました。
+- もし文字化けが続く場合は、コンテナ内で `locale -a` を実行して `ja_JP.utf8` が存在するか確認してください。ない場合は `sudo locale-gen ja_JP.UTF-8` と `sudo update-locale LANG=ja_JP.UTF-8` を試して再起動してください。
+- 日本語フォントが不足していることも原因になるため、`fonts-noto-cjk` や `fonts-ipafont` 系のパッケージがインストールされていることを確かめてください。
+
+これらの対策で多くのケースで XPRA のメニュー表示が正しくなります。

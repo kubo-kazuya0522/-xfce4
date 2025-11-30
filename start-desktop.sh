@@ -6,9 +6,12 @@ echo "[*] Installing XFCE4, VNC, noVNC, XPRA..."
 sudo apt-get update -y
 sudo apt-get upgrade -y
 
+# CJK fonts and rsvg bindings can help with proper Japanese rendering and
+# SVG icon handling which XPRA/GTK may rely on when building menus.
 sudo apt-get install -y \
   xfce4 xfce4-goodies tightvncserver novnc websockify dbus-x11 \
   x11-xserver-utils xfce4-terminal pulseaudio xpra \
+  fonts-noto-cjk gir1.2-rsvg-2.0 librsvg2-2 \
   wmctrl xdotool \
   language-pack-ja language-pack-gnome-ja fonts-ipafont fonts-ipafont-gothic fonts-ipafont-mincho \
   wget tar xz-utils bzip2
@@ -52,10 +55,33 @@ xpra stop :100 2>/dev/null || true
 export LANG=ja_JP.UTF-8
 export LC_ALL=ja_JP.UTF-8
 export LANGUAGE=ja_JP:ja
-if ! locale -a | grep -q "ja_JP.utf8"; then
-  export LANG=C.UTF-8
-  export LC_ALL=C.UTF-8
-  export LANGUAGE=C
+# Ensure Python and C libraries prefer UTF-8 when reading/writing text
+export LC_CTYPE=ja_JP.UTF-8
+export PYTHONIOENCODING=utf-8
+# Ensure the ja_JP.UTF-8 locale is actually available in the runtime. If
+# it is missing try generating it and re-check. Only fall back to C.UTF-8
+# if generation fails.
+if ! locale -a | grep -qi "ja_JP\\.utf"; then
+  echo "[*] ja_JP.UTF-8 locale not found — attempting to generate it..."
+  # Try to generate and install the locale (best-effort)
+  sudo locale-gen ja_JP.UTF-8 || true
+  sudo update-locale LANG=ja_JP.UTF-8 || true
+
+  # Re-check that the locale is present; only then keep ja_JP; otherwise
+  # fall back to C.UTF-8 which still uses UTF-8 encoding.
+  if locale -a | grep -qi "ja_JP\\.utf"; then
+    echo "[*] ja_JP.UTF-8 locale is now available"
+    export LANG=ja_JP.UTF-8
+    export LC_ALL=ja_JP.UTF-8
+    export LANGUAGE=ja_JP:ja
+    export LC_CTYPE=ja_JP.UTF-8
+  else
+    echo "[!] failed to install ja_JP.UTF-8 — falling back to C.UTF-8"
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
+    export LANGUAGE=C
+    export LC_CTYPE=C.UTF-8
+  fi
 fi
 
 # Codespaces 等で /run/user/1000 が使えない場合があるため /tmp を利用
@@ -77,6 +103,12 @@ if ! pgrep -f "startxfce4" >/dev/null 2>&1; then
 fi
 
 nohup xpra start :100 \
+  # Ensure xpra server and its child processes see the correct locale / encoding
+  --env=LANG=${LANG} \
+  --env=LC_ALL=${LC_ALL} \
+  --env=LANGUAGE=${LANGUAGE} \
+  --env=LC_CTYPE=${LC_CTYPE} \
+  --env=PYTHONIOENCODING=${PYTHONIOENCODING} \
   --bind-tcp=0.0.0.0:10000 \
   --html=on \
   --use-display=yes \
