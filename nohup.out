@@ -5,3 +5,7 @@ Entering daemon mode; any further errors will be reported to:
   /run/user/1000/xpra/:100.log
 xpra initialization error:
  too many extra arguments (2): only expected a display number
+Entering daemon mode; any further errors will be reported to:
+  /tmp/run-user-1000/xpra/:100.log
+Entering daemon mode; any further errors will be reported to:
+  /tmp/run-user-1000/xpra/:100.log
